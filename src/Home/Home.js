@@ -71,18 +71,33 @@ const Home = () => {
 
     const updatedPlayers = { ...players };
     const newScore = updatedPlayers[player].score + increment;
+    const otherPlayer = player === 'player1' ? 'player2' : 'player1';
+    const otherScore = updatedPlayers[otherPlayer].score;
     
     if (newScore < 0) return;
     
     updatedPlayers[player].score = newScore;
 
-    if (newScore >= 21) {
+    // Check for winner with deuce rules
+    const hasWon = (score, otherScore) => {
+      if (score >= 21) {
+        // If both scores are 20 or above, need to win by 2
+        if (score >= 20 && otherScore >= 20) {
+          return score >= otherScore + 2;
+        }
+        // Otherwise, first to 21 wins
+        return score >= 21;
+      }
+      return false;
+    };
+
+    if (hasWon(newScore, otherScore)) {
       setWinner(player);
       const matchData = {
         winner: updatedPlayers[player].name,
-        loser: updatedPlayers[player === 'player1' ? 'player2' : 'player1'].name,
+        loser: updatedPlayers[otherPlayer].name,
         winnerScore: newScore,
-        loserScore: updatedPlayers[player === 'player1' ? 'player2' : 'player1'].score,
+        loserScore: otherScore,
         timestamp: new Date().toISOString()
       };
       
