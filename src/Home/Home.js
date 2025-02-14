@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Minus } from 'lucide-react';
+import { Trophy, Minus, RefreshCw } from 'lucide-react';
 import { firestore } from '../firebase/Firebase';
 import { collection, addDoc, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import ReactConfetti from 'react-confetti';
 import './Home.css';
 import PlayerStats from '../PlayerStats.js/PlayerStats';
 
@@ -14,13 +15,30 @@ const Home = () => {
   const [winner, setWinner] = useState(null);
   const [recentMatches, setRecentMatches] = useState([]);
   const [previousPlayers, setPreviousPlayers] = useState(new Set());
+  const [windowDimensions, setWindowDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
+  // Update window dimensions when window is resized
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load recent matches and extract unique player names
   useEffect(() => {
     const matchesQuery = query(
       collection(firestore, 'matches'),
       orderBy('timestamp', 'desc'),
-      limit(20) // Increased limit to get more player names
+      limit(20)
     );
 
     const unsubscribe = onSnapshot(matchesQuery, (snapshot) => {
@@ -41,7 +59,6 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
-  // Rest of your existing useEffect and functions remain the same
   useEffect(() => {
     const handleKeyPress = (event) => {
       if (!gameStarted || winner) return;
@@ -78,14 +95,11 @@ const Home = () => {
     
     updatedPlayers[player].score = newScore;
 
-    // Check for winner with deuce rules
     const hasWon = (score, otherScore) => {
       if (score >= 21) {
-        // If both scores are 20 or above, need to win by 2
         if (score >= 20 && otherScore >= 20) {
           return score >= otherScore + 2;
         }
-        // Otherwise, first to 21 wins
         return score >= 21;
       }
       return false;
@@ -168,6 +182,32 @@ const Home = () => {
 
   return (
     <div className="fullscreen-container">
+      {winner && (
+        <>
+          <ReactConfetti
+            width={windowDimensions.width}
+            height={windowDimensions.height}
+            recycle={true}
+            numberOfPieces={200}
+          />
+          <div className="winner-overlay">
+            <div className="winner-announcement">
+              <Trophy className="winner-trophy" size={64} />
+              <h1 className="winner-text">
+                {players[winner].name} Wins!
+              </h1>
+              <div className="final-score">
+                {players.player1.score} - {players.player2.score}
+              </div>
+              <button onClick={resetGame} className="reset-button-winner">
+                <RefreshCw className="reset-icon" size={24} />
+                Play Again
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      
       <div className={`player-side left ${winner === 'player1' ? 'winner' : ''}`}>
         <div className="score-content">
           <div className="player-info">
@@ -206,9 +246,11 @@ const Home = () => {
         </div>
       </div>
 
-      <button onClick={resetGame} className="reset-button-fullscreen">
-        Reset Game
-      </button>
+      {!winner && (
+        <button onClick={resetGame} className="reset-button-fullscreen">
+          Reset Game
+        </button>
+      )}
     </div>
   );
 };
